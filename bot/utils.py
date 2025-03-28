@@ -17,10 +17,15 @@ logger = logging.getLogger(__name__)
 
 async def get_session():
     """Create aiohttp session with PythonAnywhere proxy"""
-    if not settings.DEBUG:
-        connector = aiohttp.TCPConnector(ssl=False)
-        return aiohttp.ClientSession(connector=connector)
-    return None
+    try:
+        if not settings.DEBUG:
+            connector = aiohttp.TCPConnector(ssl=False)
+            session = aiohttp.ClientSession(connector=connector)
+            return session
+        return None
+    except Exception as e:
+        logger.error(f"Error creating session: {e}")
+        return None
 
 async def setup_bot():
     """Initialize bot and dispatcher"""
@@ -29,9 +34,9 @@ async def setup_bot():
         session = await get_session()
         
         if session:
-            bot = Bot(token=settings.BOT_TOKEN, session=session)
+            bot = Bot(token=settings.BOT_TOKEN, session=session, parse_mode='HTML')
         else:
-            bot = Bot(token=settings.BOT_TOKEN)
+            bot = Bot(token=settings.BOT_TOKEN, parse_mode='HTML')
             
         dp = Dispatcher(bot, storage=storage)
         
@@ -39,19 +44,28 @@ async def setup_bot():
         dp.register_message_handler(send_welcome, commands=["start"])
         dp.register_message_handler(handle_text_messages)
         
-        # Set webhook in production
+        # Webhook ni production da o'rnatish
         if not settings.DEBUG:
-            webhook_info = await bot.get_webhook_info()
-            if webhook_info.url != settings.WEBHOOK_URL:
-                await bot.delete_webhook()
-                await bot.set_webhook(url=settings.WEBHOOK_URL)
-                logger.info(f"Webhook set to {settings.WEBHOOK_URL}")
+            try:
+                webhook_info = await bot.get_webhook_info()
+                if webhook_info.url != settings.WEBHOOK_URL:
+                    # Avvalgi webhook ni o'chirish
+                    await bot.delete_webhook()
+                    # Yangi webhook ni o'rnatish
+                    await bot.set_webhook(
+                        url=settings.WEBHOOK_URL,
+                        drop_pending_updates=True,
+                        allowed_updates=['message', 'edited_message', 'callback_query']
+                    )
+                    logger.info(f"Webhook set to {settings.WEBHOOK_URL}")
+            except Exception as e:
+                logger.error(f"Error setting webhook: {e}")
         
         return bot, dp
         
     except Exception as e:
         logger.error(f"Error setting up bot: {e}")
-        if session:
+        if 'session' in locals() and session:
             await session.close()
         raise
 
@@ -214,6 +228,7 @@ async def handle_text_messages(message: types.Message):
 
 async def start_bot():
     """Start the bot in appropriate mode"""
+    session = None
     try:
         bot, dp = await setup_bot()
         
@@ -231,5 +246,5 @@ async def start_bot():
     finally:
         if not settings.DEBUG and 'bot' in locals():
             session = await bot.get_session()
-            if session:
+            if session and not session.closed:
                 await session.close()

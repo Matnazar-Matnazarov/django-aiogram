@@ -55,15 +55,20 @@ async def webhook_handler(request, token):
     try:
         if request.method == 'POST':
             if token != settings.BOT_TOKEN:
+                logger.error(f"Invalid token: {token}")
                 return HttpResponse('Invalid token', status=403)
-                
+            
             update_data = json.loads(request.body.decode())
+            logger.info(f"Received update: {update_data}")
+            
             bot, dp = await setup_bot()
             
             update = types.Update(**update_data)
             await dp.process_update(update)
             
+            logger.info("Update processed successfully")
             return HttpResponse('OK')
+            
         return HttpResponse('Method not allowed', status=405)
     except Exception as e:
         logger.error(f"Webhook error: {e}")

@@ -27,5 +27,5 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("bot/", include("bot.urls")),
     path("i18n/", set_language, name="set_language"),
-    path('webhook/<str:token>/', webhook_handler, name='webhook'),
+    path('webhook/<str:token>', webhook_handler, name='webhook'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
