@@ -50,10 +50,13 @@ def add_words_to_db(request):
         }, status=500)
 
 @csrf_exempt
-async def webhook_handler(request):
+async def webhook_handler(request, token):
     """Process webhook updates from Telegram"""
     try:
         if request.method == 'POST':
+            if token != settings.BOT_TOKEN:
+                return HttpResponse('Invalid token', status=403)
+                
             update_data = json.loads(request.body.decode())
             bot, dp = await setup_bot()
             

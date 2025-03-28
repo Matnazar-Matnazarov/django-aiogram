@@ -177,10 +177,17 @@ AUTH_USER_MODEL = "accounts.CustomUser"
 # Bot settings
 BOT_TOKEN = env.str("BOT_TOKEN")
 WEBHOOK_HOST = 'https://djangoaiogramenglish.pythonanywhere.com'
-WEBHOOK_PATH = f'/webhook/{BOT_TOKEN}/'  # Slash qo'shildi
+WEBHOOK_PATH = f'/webhook/{BOT_TOKEN}/'
 WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
+
+# SSL sertifikat sozlamalari
+WEBHOOK_SSL_CERT = None  # Path to certificate if needed
+WEBHOOK_SSL_PRIV = None  # Path to private key if needed
 
 # PythonAnywhere proxy settings
 PROXY_URL = 'http://proxy.server:3128'
+
+# Bot development mode
+BOT_DEV_MODE = False  # Production muhitda False bo'lishi kerak
 
 
