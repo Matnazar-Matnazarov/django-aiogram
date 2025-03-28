@@ -109,7 +109,7 @@ async def handle_text_messages(message: types.Message):
         chat = await sync_to_async(Chat.objects.get_or_create)(user=user)
         await chat[0].async_add_message(text)
 
-        if user.role == Role.ADMIN and text == "lugat":
+        if (user.role == Role.ADMIN and text == "lugat") or (user.role == Role.SUPERADMIN and text == "lugat"):
             words = await get_random_words()
             translated_text = ""
             words_for_voice = ""
