@@ -28,25 +28,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-iig1=_05w-u#x+!h+=a%as9+j6-p9(h^=#(qqv4e_v&y80!cyl"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = [
-    'djangoaiogramenglish.pythonanywhere.com',
-    'www.djangoaiogramenglish.pythonanywhere.com',
-    'localhost',
-    '127.0.0.1',
-]
-
-# HTTPS sozlamalari
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-
-# Proxy sozlamalari
-USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -174,20 +158,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.CustomUser"
 
-# Bot settings
 BOT_TOKEN = env.str("BOT_TOKEN")
-WEBHOOK_HOST = 'https://djangoaiogramenglish.pythonanywhere.com'
-WEBHOOK_PATH = f'/webhook/{BOT_TOKEN}/'
-WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
-
-# SSL sertifikat sozlamalari
-WEBHOOK_SSL_CERT = None  # Path to certificate if needed
-WEBHOOK_SSL_PRIV = None  # Path to private key if needed
-
-# PythonAnywhere proxy settings
-PROXY_URL = 'http://proxy.server:3128'
-
-# Bot development mode
-BOT_DEV_MODE = False  # Production muhitda False bo'lishi kerak
 
 

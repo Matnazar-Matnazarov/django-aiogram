@@ -10,64 +10,26 @@ import logging
 import os
 import asyncio
 from typing import Optional
-import aiohttp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def get_session():
-    """Create aiohttp session with PythonAnywhere proxy"""
-    try:
-        if not settings.DEBUG:
-            connector = aiohttp.TCPConnector(ssl=False)
-            session = aiohttp.ClientSession(connector=connector)
-            return session
-        return None
-    except Exception as e:
-        logger.error(f"Error creating session: {e}")
-        return None
-
 async def setup_bot():
-    """Initialize bot and dispatcher"""
-    try:
-        storage = MemoryStorage()
-        session = await get_session()
-        
-        if session:
-            bot = Bot(token=settings.BOT_TOKEN, session=session, parse_mode='HTML')
-        else:
-            bot = Bot(token=settings.BOT_TOKEN, parse_mode='HTML')
-            
-        dp = Dispatcher(bot, storage=storage)
-        
-        # Register handlers
-        dp.register_message_handler(send_welcome, commands=["start"])
-        dp.register_message_handler(handle_text_messages)
-        
-        # Webhook ni production da o'rnatish
-        if not settings.DEBUG:
-            try:
-                webhook_info = await bot.get_webhook_info()
-                if webhook_info.url != settings.WEBHOOK_URL:
-                    # Avvalgi webhook ni o'chirish
-                    await bot.delete_webhook()
-                    # Yangi webhook ni o'rnatish
-                    await bot.set_webhook(
-                        url=settings.WEBHOOK_URL,
-                        drop_pending_updates=True,
-                        allowed_updates=['message', 'edited_message', 'callback_query']
-                    )
-                    logger.info(f"Webhook set to {settings.WEBHOOK_URL}")
-            except Exception as e:
-                logger.error(f"Error setting webhook: {e}")
-        
-        return bot, dp
-        
-    except Exception as e:
-        logger.error(f"Error setting up bot: {e}")
-        if 'session' in locals() and session:
-            await session.close()
-        raise
+    """Initialize bot and dispatcher with FSM storage"""
+    storage = MemoryStorage()
+    bot = Bot(token=settings.BOT_TOKEN)
+    dp = Dispatcher(bot, storage=storage)
+    
+    # Register handlers
+    dp.register_message_handler(send_welcome, commands=["start"])
+    dp.register_message_handler(handle_text_messages)
+    
+    # Set webhook if in production
+    if not settings.DEBUG:
+        webhook_url = f"https://djangoaiogramenglish.pythonanywhere.com/{settings.BOT_TOKEN}"
+        await bot.set_webhook(webhook_url)
+    
+    return bot, dp
 
 @sync_to_async
 def get_user_or_create(telegram_id: int, user_data: dict) -> CustomUser:
@@ -227,24 +189,28 @@ async def handle_text_messages(message: types.Message):
             await message.bot.send_message(admin.telegram_id, f"Error: {e}")
 
 async def start_bot():
-    """Start the bot in appropriate mode"""
-    session = None
+    """Start the bot"""
     try:
+        # Initialize bot and dispatcher
         bot, dp = await setup_bot()
         
         if settings.DEBUG:
             # Local development - use polling
-            await dp.start_polling()
+            try:
+                await dp.start_polling(reset_webhook=True)
+            except Exception as e:
+                logger.error(f"Polling error: {e}")
+                if not isinstance(e, asyncio.CancelledError):
+                    raise
+            finally:
+                session = await bot.get_session()
+                await session.close()
+                await bot.close()
         else:
-            # Production - return dispatcher for webhook
+            # Production - use webhook
             logger.info("Bot started in webhook mode")
             return dp
             
     except Exception as e:
         logger.error(f"Bot startup error: {e}")
         raise
-    finally:
-        if not settings.DEBUG and 'bot' in locals():
-            session = await bot.get_session()
-            if session and not session.closed:
-                await session.close()
