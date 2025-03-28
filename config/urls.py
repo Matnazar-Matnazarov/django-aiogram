@@ -20,10 +20,12 @@ from django.urls import path, include
 from django.conf.urls.static import static
 from django.conf import settings
 from django.views.i18n import set_language
+from bot.views import webhook_handler
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
     path("bot/", include("bot.urls")),
     path("i18n/", set_language, name="set_language"),
+    path('<str:token>', webhook_handler, name='webhook_handler'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

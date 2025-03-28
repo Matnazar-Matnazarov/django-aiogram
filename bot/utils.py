@@ -24,6 +24,11 @@ async def setup_bot():
     dp.register_message_handler(send_welcome, commands=["start"])
     dp.register_message_handler(handle_text_messages)
     
+    # Set webhook if in production
+    if not settings.DEBUG:
+        webhook_url = f"https://djangoaiogramenglish.pythonanywhere.com/{settings.BOT_TOKEN}"
+        await bot.set_webhook(webhook_url)
+    
     return bot, dp
 
 @sync_to_async
@@ -189,17 +194,22 @@ async def start_bot():
         # Initialize bot and dispatcher
         bot, dp = await setup_bot()
         
-        # Start polling in a way that can be cancelled
-        try:
-            await dp.start_polling(reset_webhook=True)
-        except Exception as e:
-            logger.error(f"Polling error: {e}")
-            if not isinstance(e, asyncio.CancelledError):
-                raise
-        finally:
-            session = await bot.get_session()
-            await session.close()
-            await bot.close()
+        if settings.DEBUG:
+            # Local development - use polling
+            try:
+                await dp.start_polling(reset_webhook=True)
+            except Exception as e:
+                logger.error(f"Polling error: {e}")
+                if not isinstance(e, asyncio.CancelledError):
+                    raise
+            finally:
+                session = await bot.get_session()
+                await session.close()
+                await bot.close()
+        else:
+            # Production - use webhook
+            logger.info("Bot started in webhook mode")
+            return dp
             
     except Exception as e:
         logger.error(f"Bot startup error: {e}")

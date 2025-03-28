@@ -1,7 +1,13 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
+from aiogram import types
+from django.conf import settings
+from .utils import setup_bot
+import json
+
 # Create your views here.
 from .models import EnglishWord
 
@@ -39,3 +45,14 @@ def add_words_to_db(request):
             'status': 'error',
             'message': str(e)
         }, status=500)
+
+@csrf_exempt
+async def webhook_handler(request, token):
+    if token == settings.BOT_TOKEN:
+        bot, dp = await setup_bot()
+        
+        update = types.Update(**json.loads(request.body.decode()))
+        await dp.process_update(update)
+        
+        return HttpResponse('OK')
+    return HttpResponse('Invalid token')
