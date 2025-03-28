@@ -22,5 +22,5 @@ venv\Scripts\activate  # On Windows
 
 2. Install the required packages:
 ```bash
-pip install "aiogram==2.22"
+pip install -r requirements.txt
 ```
