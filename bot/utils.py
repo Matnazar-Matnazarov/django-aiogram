@@ -10,41 +10,50 @@ import logging
 import os
 import asyncio
 from typing import Optional
-from aiohttp import ClientSession, TCPConnector
+import aiohttp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+async def get_session():
+    """Create aiohttp session with PythonAnywhere proxy"""
+    if not settings.DEBUG:
+        connector = aiohttp.TCPConnector(ssl=False)
+        return aiohttp.ClientSession(connector=connector)
+    return None
+
 async def setup_bot():
-    """Initialize bot and dispatcher with FSM storage"""
-    storage = MemoryStorage()
-    
-    # Configure proxy for PythonAnywhere
-    if not settings.DEBUG:
-        session = ClientSession(connector=TCPConnector(ssl=False))
-        bot = Bot(token=settings.BOT_TOKEN, session=session)
-    else:
-        bot = Bot(token=settings.BOT_TOKEN)
+    """Initialize bot and dispatcher"""
+    try:
+        storage = MemoryStorage()
+        session = await get_session()
         
-    dp = Dispatcher(bot, storage=storage)
-    
-    # Register handlers
-    dp.register_message_handler(send_welcome, commands=["start"])
-    dp.register_message_handler(handle_text_messages)
-    
-    # Set webhook if in production
-    if not settings.DEBUG:
-        webhook_info = await bot.get_webhook_info()
-        if webhook_info.url != settings.WEBHOOK_URL:
-            if webhook_info.url:
+        if session:
+            bot = Bot(token=settings.BOT_TOKEN, session=session)
+        else:
+            bot = Bot(token=settings.BOT_TOKEN)
+            
+        dp = Dispatcher(bot, storage=storage)
+        
+        # Register handlers
+        dp.register_message_handler(send_welcome, commands=["start"])
+        dp.register_message_handler(handle_text_messages)
+        
+        # Set webhook in production
+        if not settings.DEBUG:
+            webhook_info = await bot.get_webhook_info()
+            if webhook_info.url != settings.WEBHOOK_URL:
                 await bot.delete_webhook()
-            await bot.set_webhook(
-                url=settings.WEBHOOK_URL,
-                drop_pending_updates=True
-            )
-            logger.info(f"Webhook set to {settings.WEBHOOK_URL}")
-    
-    return bot, dp
+                await bot.set_webhook(url=settings.WEBHOOK_URL)
+                logger.info(f"Webhook set to {settings.WEBHOOK_URL}")
+        
+        return bot, dp
+        
+    except Exception as e:
+        logger.error(f"Error setting up bot: {e}")
+        if session:
+            await session.close()
+        raise
 
 @sync_to_async
 def get_user_or_create(telegram_id: int, user_data: dict) -> CustomUser:
@@ -204,26 +213,23 @@ async def handle_text_messages(message: types.Message):
             await message.bot.send_message(admin.telegram_id, f"Error: {e}")
 
 async def start_bot():
-    """Start the bot"""
+    """Start the bot in appropriate mode"""
     try:
-        # Initialize bot and dispatcher
         bot, dp = await setup_bot()
         
         if settings.DEBUG:
             # Local development - use polling
-            try:
-                await dp.start_polling(reset_webhook=True)
-            except Exception as e:
-                logger.error(f"Polling error: {e}")
-            finally:
-                session = await bot.get_session()
-                await session.close()
-                await bot.close()
+            await dp.start_polling()
         else:
-            # Production - use webhook
+            # Production - return dispatcher for webhook
             logger.info("Bot started in webhook mode")
             return dp
             
     except Exception as e:
         logger.error(f"Bot startup error: {e}")
         raise
+    finally:
+        if not settings.DEBUG and 'bot' in locals():
+            session = await bot.get_session()
+            if session:
+                await session.close()

@@ -174,12 +174,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.CustomUser"
 
+# Bot settings
 BOT_TOKEN = env.str("BOT_TOKEN")
 WEBHOOK_HOST = 'https://djangoaiogramenglish.pythonanywhere.com'
-WEBHOOK_PATH = f'/webhook/{BOT_TOKEN}'
+WEBHOOK_PATH = f'/webhook/{BOT_TOKEN}/'  # Slash qo'shildi
 WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
 
 # PythonAnywhere proxy settings
-PROXY_URL = 'http://proxy.server:3128'  # PythonAnywhere proxy
+PROXY_URL = 'http://proxy.server:3128'
 
 
