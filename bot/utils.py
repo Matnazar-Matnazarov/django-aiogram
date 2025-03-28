@@ -10,6 +10,7 @@ import logging
 import os
 import asyncio
 from typing import Optional
+from aiohttp import ClientSession, TCPConnector
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +18,14 @@ logger = logging.getLogger(__name__)
 async def setup_bot():
     """Initialize bot and dispatcher with FSM storage"""
     storage = MemoryStorage()
-    bot = Bot(token=settings.BOT_TOKEN)
+    
+    # Configure proxy for PythonAnywhere
+    if not settings.DEBUG:
+        session = ClientSession(connector=TCPConnector(ssl=False))
+        bot = Bot(token=settings.BOT_TOKEN, session=session)
+    else:
+        bot = Bot(token=settings.BOT_TOKEN)
+        
     dp = Dispatcher(bot, storage=storage)
     
     # Register handlers
@@ -26,8 +34,15 @@ async def setup_bot():
     
     # Set webhook if in production
     if not settings.DEBUG:
-        webhook_url = f"https://djangoaiogramenglish.pythonanywhere.com/{settings.BOT_TOKEN}"
-        await bot.set_webhook(webhook_url)
+        webhook_info = await bot.get_webhook_info()
+        if webhook_info.url != settings.WEBHOOK_URL:
+            if webhook_info.url:
+                await bot.delete_webhook()
+            await bot.set_webhook(
+                url=settings.WEBHOOK_URL,
+                drop_pending_updates=True
+            )
+            logger.info(f"Webhook set to {settings.WEBHOOK_URL}")
     
     return bot, dp
 
@@ -200,8 +215,6 @@ async def start_bot():
                 await dp.start_polling(reset_webhook=True)
             except Exception as e:
                 logger.error(f"Polling error: {e}")
-                if not isinstance(e, asyncio.CancelledError):
-                    raise
             finally:
                 session = await bot.get_session()
                 await session.close()

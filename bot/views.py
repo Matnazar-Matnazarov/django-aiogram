@@ -7,9 +7,12 @@ from aiogram import types
 from django.conf import settings
 from .utils import setup_bot
 import json
+import logging
 
 # Create your views here.
 from .models import EnglishWord
+
+logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET"])
 def add_words_to_db(request):
@@ -47,12 +50,18 @@ def add_words_to_db(request):
         }, status=500)
 
 @csrf_exempt
-async def webhook_handler(request, token):
-    if token == settings.BOT_TOKEN:
-        bot, dp = await setup_bot()
-        
-        update = types.Update(**json.loads(request.body.decode()))
-        await dp.process_update(update)
-        
-        return HttpResponse('OK')
-    return HttpResponse('Invalid token')
+async def webhook_handler(request):
+    """Process webhook updates from Telegram"""
+    try:
+        if request.method == 'POST':
+            update_data = json.loads(request.body.decode())
+            bot, dp = await setup_bot()
+            
+            update = types.Update(**update_data)
+            await dp.process_update(update)
+            
+            return HttpResponse('OK')
+        return HttpResponse('Method not allowed', status=405)
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return HttpResponse(str(e), status=500)
